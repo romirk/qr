@@ -62,19 +62,33 @@ def main():
         upper_bound = rr - 1
         skip_until = upper_bound + 1
 
-        if upper_bound - lower_bound >= MIN_STEP:
+        unit = (upper_bound - lower_bound) // 3
+        if unit >= MIN_STEP:
             for candidate in candidate_set:
-                x_candidates.append((lower_bound, upper_bound, candidate))
+                x_candidates.append((lower_bound - unit * 2, upper_bound + unit * 2, candidate))
 
     # Now verify candidates in vertical direction
+    rgb = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
     for row_lower, row_upper, (col_start, col_end) in x_candidates:
         print(row_lower, row_upper, col_start, col_end)
+
+        # draw rectangle around candidate
+        cv2.rectangle(rgb, (col_start, row_lower), (col_end, row_upper), (0, 0, 255), 2)
+        cv2.imshow('candidates', rgb)
+        cv2.waitKey(0)
+
         for c in range(col_start, col_end):
             col: npt.NDArray[np.int_] = im[:, c]
-            dark_segments = find_dark_segments(rows, col)
+            dark_segments = find_dark_segments(rows, col.transpose())
             col_x_candidates = finder_pattern_candidates(dark_segments)
+            print(col_x_candidates)
             if col_x_candidates:
+
                 print(f"  Verified at col {c}, rows {col_start} to {col_end}")
+                # draw vertical line through candidate
+                cv2.line(rgb, (c, row_lower), (c, row_upper), (0, 255, 0), 1)
+                cv2.imshow('candidates', rgb)
+                cv2.waitKey(0)
                 break
 
 
