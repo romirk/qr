@@ -9,6 +9,7 @@ def main():
     im = cv2.imread('test.jpg', cv2.IMREAD_GRAYSCALE)
     rows, cols = im.shape
 
+    x_candidates = []
     skip_until = 0
     for r in range(0, rows, MIN_STEP):
         if r < skip_until:
@@ -35,49 +36,49 @@ def main():
         lower_bound = max(0, lower_bound)
         upper_bound = min(rows - 1, upper_bound)
 
-        candidate_rows = []
-        for rr in range(lower_bound, upper_bound + 1):
-            if rr == r:
-                candidate_rows.append((rr, row_x_candidates))
-                continue
+        candidate_set = set(row_x_candidates)
+        rr = r
+        while rr >= lower_bound:
+            rr -= 1
             row: npt.NDArray[np.int_] = im[rr, :]
             dark_segments = find_dark_segments(cols, row)
-            rr_x_candidates = finder_pattern_candidates(dark_segments)
-            if not rr_x_candidates:
-                continue
-            similar = similar_candidate_exists(row_x_candidates, rr_x_candidates)
-            if similar:
-                candidate_rows.append((rr, rr_x_candidates))
-                skip_until = rr
+            neigh_x_candidates = finder_pattern_candidates(dark_segments)
+            if not neigh_x_candidates:
+                break
+            new_set = candidate_set.intersection(neigh_x_candidates)
+            if not new_set:
+                break
+            candidate_set = new_set
+        lower_bound = rr + 1
+        rr = r
+        while rr <= upper_bound:
+            rr += 1
+            row: npt.NDArray[np.int_] = im[rr, :]
+            dark_segments = find_dark_segments(cols, row)
+            neigh_x_candidates = finder_pattern_candidates(dark_segments)
+            if not neigh_x_candidates:
+                break
+            new_set = candidate_set.intersection(neigh_x_candidates)
+            if not new_set:
+                break
+            candidate_set = new_set
+        upper_bound = rr - 1
+        skip_until = upper_bound + 1
 
-        if len(candidate_rows) >= 3:
-            print(f"Found candidates in rows {lower_bound} to {upper_bound}:")
-            for rr, candidates in candidate_rows:
-                print(f" Row {rr}: {candidates}")
-            print()
-    # pprint(x_candidates)
-    # pprint(candidate_rows)
-    #
-    # for start, end in sorted(x_candidates):
-    #     for c in range(start, end):
-    #         col = im[:, c]
-    #         dark_segments = find_dark_segments(rows, col)
-    #         y_candidates = finder_pattern_candidates(dark_segments)
-    #         if not y_candidates:
-    #             continue
-    #         print(f"Col {c}: candidates found: {y_candidates}")
-    #     break
+        if upper_bound - lower_bound >= MIN_STEP:
+            for candidate in candidate_set:
+                x_candidates.append((lower_bound, upper_bound, candidate))
 
-
-def similar_candidate_exists(
-        candidates_a: list[tuple[int, int]], candidates_b: list[tuple[int, int]]
-) -> tuple[int, int] | None:
-    for a_start, a_end in candidates_a:
-        for b_start, b_end in candidates_b:
-            if (a_start - MIN_STEP < b_start < a_start + MIN_STEP and
-                    a_end - MIN_STEP < b_end < a_end + MIN_STEP):
-                return a_start, a_end
-    return None
+    # Now verify candidates in vertical direction
+    for row_lower, row_upper, (col_start, col_end) in x_candidates:
+        print(row_lower, row_upper, col_start, col_end)
+        for c in range(col_start, col_end):
+            col: npt.NDArray[np.int_] = im[:, c]
+            dark_segments = find_dark_segments(rows, col)
+            col_x_candidates = finder_pattern_candidates(dark_segments)
+            if col_x_candidates:
+                print(f"  Verified at col {c}, rows {col_start} to {col_end}")
+                break
 
 
 def find_dark_segments(cols, row: npt.NDArray[np.int_]) -> list[tuple[int, int]]:
