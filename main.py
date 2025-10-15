@@ -24,17 +24,14 @@ def main():
             continue
 
         # found a candidate row -- find neighboring rows with candidates
-        lower_bound = float('inf')
-        upper_bound = float('-inf')
+        max_radius = 0
         for A, B in row_x_candidates:
             radius = (B - A) // 2
-            if r - radius < lower_bound:
-                lower_bound = r - radius
-            if r + radius > upper_bound:
-                upper_bound = r + radius
+            if radius > max_radius:
+                max_radius = radius
 
-        lower_bound = max(0, lower_bound)
-        upper_bound = min(rows - 1, upper_bound)
+        lower_bound = max(0, r - max_radius)
+        upper_bound = min(rows - 1, r + max_radius)
 
         candidate_set = set(row_x_candidates)
         rr = r
